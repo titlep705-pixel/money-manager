@@ -1,0 +1,93 @@
+/* ฟอนต์และพื้นหลัง */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #a8edea, #fed6e3);
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* กล่องหลัก */
+.container {
+  max-width: 420px;
+  width: 100%;
+  background: #fff;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* หัวข้อ */
+h1, h2, h3 {
+  text-align: center;
+  color: #333;
+}
+
+/* ช่องกรอกข้อมูล */
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: #7accc8;
+  box-shadow: 0 0 5px rgba(122, 204, 200, 0.5);
+}
+
+/* ปุ่ม */
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background: #7accc8;
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+button:hover {
+  background: #5ab3af;
+}
+
+/* รายการประวัติ */
+.history {
+  margin-top: 20px;
+}
+.history ul {
+  list-style: none;
+  padding: 0;
+}
+.history li {
+  background: #f9f9f9;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.income { color: #2e8b57; font-weight: bold; }
+.expense { color: #d9534f; font-weight: bold; }
+
+/* ลิงก์ออกจากระบบ */
+a {
+  color: #5ab3af;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* เอฟเฟกต์เข้ามาแบบนุ่มนวล */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

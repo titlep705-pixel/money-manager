@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ตัวจัดการออมเงิน (Money Manager)</title>
+  <style>
+    :root{
+      --bg:#f3f7f9; --card:#ffffff; --accent:#2b8aef; --success:#2ecc71; --danger:#e74c3c; --muted:#6b7280;
+      --radius:12px; --pad:16px; max-width:1100px;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:#0f172a}
+    header{background:linear-gradient(90deg,#eef6ff,#ffffff); padding:18px 16px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,0.03)}
+    header h1{margin:0;font-size:20px}
+    .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
+
+    .grid{display:grid; grid-template-columns: 1fr 360px; gap:16px}
+    .card{background:var(--card); padding:var(--pad); border-radius:var(--radius); box-shadow:0 6px 18px rgba(10,20,40,0.04)}
+
+    form label{display:block;font-size:13px;margin-top:10px;color:var(--muted)}
+    input[type="text"], input[type="number"], input[type="date"], select, textarea{width:100%; padding:10px; margin-top:6px; border:1px solid #e6edf3; border-radius:8px}
+    .row{display:flex; gap:8px}
+    .row .col{flex:1}
+
+    .btn{display:inline-block;padding:10px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn-primary{background:var(--accent); color:#fff}
+    .btn-ghost{background:transparent;border:1px solid #e6edf3}
+    .btn-danger{background:var(--danger); color:#fff}
+
+    .summary{display:flex;flex-direction:column;gap:12px}
+    .stat{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;border:1px dashed #eef5ff}
+    .stat .label{font-size:13px;color:var(--muted)}
+    .stat .value{font-weight:700}
+
+    canvas{width:100% !important; height:220px !important}
+
+    .history{margin-top:20px}
+    table{width:100%;border-collapse:collapse}
+    th, td{padding:8px;text-align:left;border-bottom:1px solid #f0f3f6;font-size:14px}
+    th{font-size:13px;color:var(--muted)}
+    .income{color:var(--success)}
+    .expense{color:var(--danger)}
+
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+    footer{text-align:center;margin:18px 0;color:var(--muted);font-size:13px}
+
+    /* responsive */
+    @media (max-width:860px){.grid{grid-template-columns:1fr} canvas{height:200px}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ตัวจัดการออมเงิน — บันทึกรายรับ/รายจ่าย </h1>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- LEFT: FORM + ACTIONS -->
+      <div class="card">
+        <form id="txForm">
+          <label for="type">ประเภท</label>
+          <select id="type">
+            <option value="income">รายรับ</option>
+            <option value="expense">รายจ่าย</option>
+          </select>
+
+          <label for="amount">จำนวนเงิน (บาท)</label>
+          <input id="amount" type="number" step="0.01" min="0.01" placeholder="เช่น 150.00">
+
+          <div class="row">
+            <div class="col">
+              <label for="date">วันที่</label>
+              <input id="date" type="date">
+            </div>
+            <div class="col">
+              <label for="category">หมวดหมู่</label>
+              <select id="category">
+                <option>เงินค่า(Allowance)</option>
+                <option>เงินเดือน/ค่าแรง</option>
+                <option>อาหาร</option>
+                <option>เดินทาง</option>
+                <option>บันเทิง</option>
+                <option>ออม/เก็บ</option>
+                <option>อื่น ๆ</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="desc">คำอธิบาย</label>
+          <input id="desc" type="text" placeholder="เช่น ซื้อข้าว, เก็บออมประจำวัน">
+
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="submitBtn" class="btn btn-primary">เพิ่มรายการ</button>
+            <button id="cancelEditBtn" type="button" class="btn btn-ghost" style="display:none">ยกเลิกแก้ไข</button>
+            <button id="clearFormBtn" type="button" class="btn btn-ghost">ล้างฟอร์ม</button>
+          </div>
+        </form>
+
+        <div class="actions">
+          <button id="exportBtn" class="btn btn-ghost">Export CSV</button>
+          <button id="importBtn" class="btn btn-ghost">Import CSV</button>
+          <input id="importFile" type="file" accept="text/csv" style="display:none">
+
+          <button id="clearAllBtn" class="btn btn-danger">ลบข้อมูลทั้งหมด</button>
+        </div>
+
+        <p style="margin-top:12px;color:var(--muted);font-size:13px">
+      </div>
+
+      <!-- RIGHT: SUMMARY + CHART -->
+      <div>
+        <div class="card summary">
+          <div class="stat"><div class="label">ยอดรวมรายรับ</div><div id="totalIncome" class="value">฿0.00</div></div>
+          <div class="stat"><div class="label">ยอดรวมรายจ่าย</div><div id="totalExpense" class="value">฿0.00</div></div>
+          <div class="stat"><div class="label">ยอดคงเหลือ</div><div id="balance" class="value">฿0.00</div></div>
+
+          <div style="margin-top:6px">
+            <canvas id="pieChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 8px 0">กราฟรายเดือน (6 เดือนล่าสุด)</h3>
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card history" style="margin-top:18px">
+      <h3 style="margin-top:0">ประวัติรายการ</h3>
+      <table>
+        <thead>
+          <tr><th>วันที่</th><th>ประเภท</th><th>หมวด</th><th>คำอธิบาย</th><th>จำนวน</th><th>จัดการ</th></tr>
+        </thead>
+        <tbody id="txBody"></tbody>
+      </table>
+    </div>
+
+    <footer>ทดสอบ: เพิ่มรายการ > แก้ไข > ลบ > Export > Import — ถ้าติดปัญหา บอกผมได้เลยครับ :)</footer>
+  </div>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // ---------- การตั้งค่าเริ่มต้น ----------
+    const LS_KEY = 'money_manager_transactions_v1';
+    let transactions = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+    let editingId = null;
+
+    // DOM
+    const form = document.getElementById('txForm');
+    const typeEl = document.getElementById('type');
+    const amountEl = document.getElementById('amount');
+    const dateEl = document.getElementById('date');
+    const categoryEl = document.getElementById('category');
+    const descEl = document.getElementById('desc');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const clearFormBtn = document.getElementById('clearFormBtn');
+
+    const totalIncomeEl = document.getElementById('totalIncome');
+    const totalExpenseEl = document.getElementById('totalExpense');
+    const balanceEl = document.getElementById('balance');
+
+    const txBody = document.getElementById('txBody');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFile = document.getElementById('importFile');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+
+    // Charts
+    let pieChart = null; let barChart = null;
+
+    // ---------- Helpers ----------
+    function save(){
+      localStorage.setItem(LS_KEY, JSON.stringify(transactions));
+    }
+
+    function formatCurrency(n){
+      if (!isFinite(n)) return '฿0.00';
+      return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 2 }).format(n);
+    }
+
+    function todayISO(){
+      return new Date().toISOString().slice(0,10);
+    }
+
+    function uid(){ return Date.now().toString(36) + Math.floor(Math.random()*1000).toString(36); }
+
+    // ---------- Render UI ----------
+    function render(){
+      // table
+      txBody.innerHTML = '';
+      const sorted = transactions.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+      for (const t of sorted){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${t.date}</td>
+          <td class="${t.type === 'income' ? 'income' : 'expense'}">${t.type === 'income' ? 'รายรับ' : 'รายจ่าย'}</td>
+          <td>${escapeHtml(t.category)}</td>
+          <td>${escapeHtml(t.desc)}</td>
+          <td style="font-weight:700">${formatCurrency(t.amount)}</td>
+          <td>
+            <button class="btn btn-ghost" data-id="${t.id}" data-act="edit">แก้ไข</button>
+            <button class="btn btn-ghost" data-id="${t.id}" data-act="delete">ลบ</button>
+          </td>`;
+        txBody.appendChild(tr);
+      }
+
+      // summary
+      const totalIncome = transactions.filter(t=>t.type==='income').reduce((s,t)=>s + Number(t.amount),0);
+      const totalExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s + Number(t.amount),0);
+      const bal = totalIncome - totalExpense;
+      totalIncomeEl.textContent = formatCurrency(totalIncome);
+      totalExpenseEl.textContent = formatCurrency(totalExpense);
+      balanceEl.textContent = formatCurrency(bal);
+
+      // re-attach listeners for edit/delete
+      txBody.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          const id = btn.dataset.id;
+          const act = btn.dataset.act;
+          if (act === 'edit') startEdit(id);
+          if (act === 'delete') removeTx(id);
+        });
+      });
+
+      updateCharts();
+      save();
+    }
+
+    function escapeHtml(str){
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ---------- CRUD ----------
+    function addTransaction(obj){
+      transactions.push(obj);
+      render();
+    }
+
+    function startEdit(id){
+      const t = transactions.find(x=>x.id===id);
+      if (!t) return;
+      editingId = id;
+      typeEl.value = t.type;
+      amountEl.value = t.amount;
+      dateEl.value = t.date;
+      categoryEl.value = t.category;
+      descEl.value = t.desc;
+      submitBtn.textContent = 'บันทึกการแก้ไข';
+      cancelEditBtn.style.display = 'inline-block';
+    }
+
+    function applyEdit(){
+      const t = transactions.find(x=>x.id===editingId);
+      if (!t) return;
+      t.type = typeEl.value;
+      t.amount = Number(parseFloat(amountEl.value) || 0);
+      t.date = dateEl.value;
+      t.category = categoryEl.value;
+      t.desc = descEl.value;
+      editingId = null;
+      submitBtn.textContent = 'เพิ่มรายการ';
+      cancelEditBtn.style.display = 'none';
+      clearForm();
+      render();
+    }
+
+    function removeTx(id){
+      if (!confirm('ยืนยันการลบรายการนี้?')) return;
+      transactions = transactions.filter(x=>x.id!==id);
+      render();
+    }
+
+    function clearForm(){
+      typeEl.value = 'income'; amountEl.value = ''; dateEl.value = todayISO(); categoryEl.selectedIndex = 0; descEl.value = '';
+    }
+
+    // ---------- Export / Import CSV ----------
+    function exportCSV(){
+      if (transactions.length === 0) return alert('ไม่มีข้อมูลส่งออก');
+      const header = ['id','date','type','category','desc','amount'];
+      const lines = [header.join(',')];
+      for (const t of transactions){
+        // escape quotes by doubling
+        const row = [t.id, t.date, t.type, '"'+String(t.category).replace(/"/g,'""')+'"', '"'+String(t.desc).replace(/"/g,'""')+'"', t.amount];
+        lines.push(row.join(','));
+      }
+      const csv = lines.join('\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'transactions.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function importCSVFile(file){
+      const reader = new FileReader();
+      reader.onload = function(e){
+        const txt = e.target.result;
+        // Simple CSV parser: expects the format exported by this app.
+        const lines = txt.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+        if (lines.length <= 1) return alert('ไม่มีข้อมูลในไฟล์');
+        const newTx = [];
+        for (let i=1;i<lines.length;i++){
+          const line = lines[i];
+          // split by comma but handle quoted fields
+          const parts = parseCSVLine(line);
+          if (parts.length < 6) continue;
+          const [id,date,type,category,desc,amount] = parts;
+          newTx.push({ id: id || uid(), date: date || todayISO(), type: type||'expense', category: category.replace(/^"|"$/g,'').replace(/""/g,'"'), desc: desc.replace(/^"|"$/g,'').replace(/""/g,'"'), amount: Number(amount) });
+        }
+        transactions = transactions.concat(newTx);
+        render();
+        alert('นำเข้าเสร็จ: ' + newTx.length + ' รายการ');
+      };
+      reader.readAsText(file,'UTF-8');
+    }
+
+    function parseCSVLine(line){
+      const res = [];
+      let cur = ''; let inQuotes = false;
+      for (let i=0;i<line.length;i++){
+        const ch = line[i];
+        if (ch === '"'){
+          if (inQuotes && line[i+1] === '"'){ cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes){ res.push(cur); cur=''; }
+        else cur += ch;
+      }
+      res.push(cur);
+      return res;
+    }
+
+    // ---------- Charts ----------
+    function updateCharts(){
+      // pie: income vs expense
+      const totalIncome = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+      const totalExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+
+      const pieData = [totalIncome, totalExpense];
+      if (pieChart) pieChart.destroy();
+      pieChart = new Chart(document.getElementById('pieChart'), {
+        type: 'doughnut', data: { labels:['รายรับ','รายจ่าย'], datasets:[{ data: pieData }] }, options:{plugins:{legend:{position:'bottom'}}}
+      });
+
+      // bar: monthly totals for last 6 months
+      const months = getLastNMonths(6); // [{key:'2025-08', label:'Aug 2025'} ...]
+      const incByMonth = months.map(m => transactions.filter(t=>t.type==='income' && t.date.startsWith(m.key)).reduce((s,t)=>s+Number(t.amount),0));
+      const expByMonth = months.map(m => transactions.filter(t=>t.type==='expense' && t.date.startsWith(m.key)).reduce((s,t)=>s+Number(t.amount),0));
+
+      if (barChart) barChart.destroy();
+      barChart = new Chart(document.getElementById('barChart'), {
+        type: 'bar', data: { labels: months.map(m=>m.label), datasets: [ { label: 'รายรับ', data: incByMonth }, { label: 'รายจ่าย', data: expByMonth } ] }, options:{ responsive:true, plugins:{legend:{position:'bottom'}} }
+      });
+    }
+
+    function getLastNMonths(n){
+      const arr = [];
+      const now = new Date();
+      for (let i=n-1;i>=0;i--){
+        const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+        const key = d.toISOString().slice(0,7); // YYYY-MM
+        const label = new Intl.DateTimeFormat('th-TH', { month:'short', year:'numeric' }).format(d);
+        arr.push({key,label});
+      }
+      return arr;
+    }
+
+    // ---------- Events ----------
+    document.addEventListener('DOMContentLoaded', ()=>{
+      if (!dateEl.value) dateEl.value = todayISO();
+      render();
+    });
+
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const amount = Number(parseFloat(amountEl.value));
+      if (!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินที่ถูกต้อง');
+      const date = dateEl.value || todayISO();
+      const obj = { id: editingId || uid(), type: typeEl.value, amount: amount, date: date, category: categoryEl.value, desc: descEl.value };
+      if (editingId) {
+        applyEdit();
+      } else {
+        addTransaction(obj);
+        clearForm();
+      }
+    });
+
+    cancelEditBtn.addEventListener('click', ()=>{ editingId = null; submitBtn.textContent = 'เพิ่มรายการ'; cancelEditBtn.style.display = 'none'; clearForm(); });
+    clearFormBtn.addEventListener('click', clearForm);
+
+    exportBtn.addEventListener('click', exportCSV);
+    importBtn.addEventListener('click', ()=>importFile.click());
+    importFile.addEventListener('change', (e)=>{ const f = e.target.files[0]; if (f) importCSVFile(f); importFile.value = ''; });
+
+    clearAllBtn.addEventListener('click', ()=>{
+      if (confirm('ต้องการลบข้อมูลทั้งหมดจริงหรือไม่?')){ transactions = []; render(); }
+    });
+
+    // ---------- Small tests / sample helper (uncomment to seed) ----------
+    // if (transactions.length === 0){
+    //   transactions.push({id:uid(), type:'income', amount:5000, date:todayISO(), category:'เงินเดือน/ค่าแรง', desc:'เงินเดือนเดือนนี้'});
+    //   transactions.push({id:uid(), type:'expense', amount:120, date:todayISO(), category:'อาหาร', desc:'ซื้อข้าว'});
+    //   save(); render();
+    // }
+  </script>
+</body>
+</html>
